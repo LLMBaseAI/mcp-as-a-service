@@ -1,4 +1,4 @@
-# MCP Registry Server
+# MCP-as-a-Service
 
 A fully dynamic, intelligent registry for hosting and proxying MCP (Model Context Protocol) servers with automatic package detection and on-demand installation.
 
