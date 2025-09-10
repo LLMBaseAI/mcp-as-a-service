@@ -1,4 +1,4 @@
-# MCP as a Service
+# MCP-as-a-Service
 
 **HTTP/SSE Proxy for MCP Servers** - Run any MCP (Model Context Protocol) server remotely via REST API and Server-Sent Events. Built with Bun + Hono + TypeScript.
 
