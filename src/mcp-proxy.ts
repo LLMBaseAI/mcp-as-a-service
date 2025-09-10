@@ -1,8 +1,9 @@
 import { ChildProcess, spawn } from 'child_process';
 import { EventEmitter } from 'events';
 import { logger } from './logger.js';
-import { sanitizeEnvKey, sanitizeEnvValue } from './validation.js';
-import { attachJsonRpc } from './mcp/jsonrpc.js';
+import { mapParametersToEnvironment } from './parameter-mapping.js';
+import { buildMCPCommand } from './command-builder.js';
+import { attachJsonRpc } from './jsonrpc.js';
 
 export interface MCPServerProcess {
   process: ChildProcess;
@@ -47,8 +48,9 @@ export class MCPProxy {
     // Create new server process
     logger.info(`Starting MCP server: ${packageName}`);
     
-    const { command, args } = this.buildCommand(packageName, packageType);
-    const env = this.buildEnvironment(params);
+    const customArgs = typeof params.args === 'string' ? params.args : undefined;
+    const { command, args } = buildMCPCommand(packageName, packageType, customArgs);
+    const env = mapParametersToEnvironment(params);
     
     const mcpProcess = spawn(command, args, {
       env: { ...process.env, ...env },
@@ -143,57 +145,7 @@ export class MCPProxy {
     };
   }
 
-  private buildCommand(packageName: string, packageType: 'npm' | 'python'): { command: string; args: string[] } {
-    if (packageType === 'npm') {
-      return {
-        command: 'npx',
-        args: ['-y', packageName]
-      };
-    } else {
-      return {
-        command: 'uvx',
-        args: [packageName]
-      };
-    }
-  }
 
-  private buildEnvironment(params: Record<string, unknown>): Record<string, string> {
-    const env: Record<string, string> = {};
-    
-    // Common parameter mappings for popular MCP servers
-    const parameterMappings: Record<string, string> = {
-      'firecrawlApiKey': 'FIRECRAWL_API_KEY',
-      'openaiApiKey': 'OPENAI_API_KEY',
-      'anthropicApiKey': 'ANTHROPIC_API_KEY',
-      'githubToken': 'GITHUB_TOKEN',
-      'slackToken': 'SLACK_TOKEN',
-      'discordToken': 'DISCORD_TOKEN',
-      'apiKey': 'API_KEY',
-      'accessToken': 'ACCESS_TOKEN',
-      'bearerToken': 'BEARER_TOKEN',
-      'clientId': 'CLIENT_ID',
-      'clientSecret': 'CLIENT_SECRET'
-    };
-    
-    for (const [key, value] of Object.entries(params)) {
-      if (key !== 'args') {
-        // Check for specific parameter mappings first
-        let envKey: string | null | undefined = parameterMappings[key];
-        
-        // Fall back to generic sanitization if no specific mapping
-        if (!envKey) {
-          envKey = sanitizeEnvKey(key);
-        }
-        
-        if (envKey) {
-          env[envKey] = sanitizeEnvValue(value);
-          logger.info(`Mapped parameter ${key} to environment variable ${envKey}`);
-        }
-      }
-    }
-    
-    return env;
-  }
 
   private hashParams(params: Record<string, unknown>): string {
     const str = JSON.stringify(params, Object.keys(params).sort());

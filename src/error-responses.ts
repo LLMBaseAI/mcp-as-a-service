@@ -1,6 +1,109 @@
-import { ErrorResponse } from './types.js';
+import { ErrorResponse, MCPErrorCodes, MCPJSONRPCError } from './types.js';
 import { SERVER_CONFIG } from './config.js';
 
+// MCP-compliant JSON-RPC error responses
+export const MCPErrorResponses = {
+  createError(code: number, message: string, data?: unknown): MCPJSONRPCError {
+    return { code, message, data };
+  },
+
+  unsupportedProtocolVersion(supported: string[], requested: string): MCPJSONRPCError {
+    return this.createError(
+      MCPErrorCodes.UNSUPPORTED_PROTOCOL_VERSION,
+      'Unsupported protocol version',
+      { supported, requested }
+    );
+  },
+
+  methodNotFound(method: string): MCPJSONRPCError {
+    return this.createError(
+      MCPErrorCodes.METHOD_NOT_FOUND,
+      `Method not found: ${method}`
+    );
+  },
+
+  invalidParams(message: string, data?: unknown): MCPJSONRPCError {
+    return this.createError(
+      MCPErrorCodes.INVALID_PARAMS,
+      message,
+      data
+    );
+  },
+
+  internalError(message?: string, data?: unknown): MCPJSONRPCError {
+    return this.createError(
+      MCPErrorCodes.INTERNAL_ERROR,
+      message || 'Internal error',
+      data
+    );
+  },
+
+  serverNotReady(): MCPJSONRPCError {
+    return this.createError(
+      MCPErrorCodes.SERVER_NOT_READY,
+      'Server is not ready to accept requests'
+    );
+  },
+
+  packageNotFound(packageName: string): MCPJSONRPCError {
+    return this.createError(
+      MCPErrorCodes.PACKAGE_NOT_FOUND,
+      `Package '${packageName}' was not found in NPM or PyPI registries`
+    );
+  },
+
+  runtimeNotAvailable(command: string, packageType: string): MCPJSONRPCError {
+    return this.createError(
+      MCPErrorCodes.RUNTIME_NOT_AVAILABLE,
+      `Command '${command}' not found. ${packageType.toUpperCase()} packages require ${command}.`
+    );
+  },
+
+  serverStartFailed(packageName: string, reason: string): MCPJSONRPCError {
+    return this.createError(
+      MCPErrorCodes.SERVER_START_FAILED,
+      `Package '${packageName}' was installed but failed to start: ${reason}`
+    );
+  },
+
+  maxProcessesExceeded(): MCPJSONRPCError {
+    return this.createError(
+      MCPErrorCodes.MAX_PROCESSES_EXCEEDED,
+      `Maximum ${SERVER_CONFIG.maxConcurrentProcesses} concurrent processes allowed`
+    );
+  },
+
+  invalidPackageName(errorType: string): MCPJSONRPCError {
+    const errorMessages: Record<string, string> = {
+      'empty_or_invalid_type': 'Package name is required and must be a string',
+      'too_long': `Package name too long (max ${SERVER_CONFIG.maxPackageNameLength} characters)`,
+      'invalid_format': 'Invalid package name format. Must be valid NPM/PyPI package name',
+      'path_traversal': 'Path traversal detected in package name',
+      'shell_metacharacters': 'Package name contains dangerous shell characters'
+    };
+    
+    return this.createError(
+      MCPErrorCodes.INVALID_PACKAGE_NAME,
+      errorMessages[errorType] || 'Package name validation failed'
+    );
+  },
+
+  remoteServerNotSupported(packageName: string): MCPJSONRPCError {
+    return this.createError(
+      MCPErrorCodes.REMOTE_SERVER_NOT_SUPPORTED,
+      `Package '${packageName}' appears to be a remote MCP server (contains URL). This registry only supports installable packages from NPM or PyPI.`
+    );
+  },
+
+  qualityCheckFailed(packageName: string, type: string, reason: string): MCPJSONRPCError {
+    return this.createError(
+      MCPErrorCodes.QUALITY_CHECK_FAILED,
+      `Package '${packageName}' (${type}) does not meet quality requirements: ${reason}`
+    );
+  }
+};
+
+// Legacy error responses for HTTP endpoints (backward compatibility)
 export const ErrorResponses = {
   REMOTE_SERVER_NOT_SUPPORTED: (packageName: string): ErrorResponse => ({
     error: "Remote MCP servers not supported",
@@ -158,3 +261,21 @@ export const ErrorResponses = {
     }
   })
 };
+
+// Helper function to create MCP-compliant JSON-RPC error response
+export function createMCPErrorResponse(id: string | number | null, error: MCPJSONRPCError) {
+  return {
+    jsonrpc: '2.0' as const,
+    id,
+    error
+  };
+}
+
+// Helper function to create MCP-compliant JSON-RPC success response
+export function createMCPSuccessResponse(id: string | number | null, result: unknown) {
+  return {
+    jsonrpc: '2.0' as const,
+    id,
+    result
+  };
+}

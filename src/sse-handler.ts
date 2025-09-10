@@ -3,6 +3,8 @@ import { MCPProxy } from './mcp-proxy.js'
 import { logger } from './logger.js'
 import { v4 as uuidv4 } from 'uuid'
 import { detectPackageType } from './packages.js'
+import { MCPErrorResponses, createMCPErrorResponse } from './error-responses.js'
+import { MCPErrorCodes } from './types.js'
 
 export class SSEHandler {
   constructor(private mcpProxy: MCPProxy) {}
@@ -148,15 +150,8 @@ export class SSEHandler {
 
     } catch (error) {
       logger.error(`Error handling MCP message for ${packageName}:`, error);
-      return c.json({
-        jsonrpc: '2.0',
-        id: null,
-        error: {
-          code: -32603,
-          message: 'Internal error',
-          data: String(error)
-        }
-      }, 500);
+      const mcpError = MCPErrorResponses.internalError('Failed to handle message', String(error));
+      return c.json(createMCPErrorResponse(null, mcpError), 500);
     }
   }
 }

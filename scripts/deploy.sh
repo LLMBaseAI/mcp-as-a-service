@@ -9,23 +9,28 @@ SERVER_USER="root"
 echo "🔥 Deploying MCP-over-HTTP Proxy to Production"
 echo "=============================================="
 
+# Change to project root directory (script is now in /scripts folder)
+cd "$(dirname "$0")/.."
+
 # Create complete deployment package
 echo "📦 Creating MCP-over-HTTP deployment package..."
-tar -czf mcp-over-http.tar.gz src/ package.json tsconfig.json ecosystem.config.cjs
+# Use --exclude to avoid macOS metadata and disable extended attributes
+tar --exclude='*.DS_Store' --exclude='._*' --no-xattrs -czf scripts/mcp-over-http.tar.gz src/ test/ package.json tsconfig.json ecosystem.config.cjs 2>/dev/null || tar -czf scripts/mcp-over-http.tar.gz src/ test/ package.json tsconfig.json ecosystem.config.cjs
 
 # Upload to server
 echo "⬆️ Uploading to production server..."
-scp mcp-over-http.tar.gz ${SERVER_USER}@${SERVER_IP}:/tmp/
+scp scripts/mcp-over-http.tar.gz ${SERVER_USER}@${SERVER_IP}:/tmp/
 
-ssh -o ConnectTimeout=10 ${SERVER_USER}@${SERVER_IP} << 'ENDSSH'
+ssh -o ConnectTimeout=30 -o ServerAliveInterval=60 -o ServerAliveCountMax=3 ${SERVER_USER}@${SERVER_IP} << 'ENDSSH'
 set -e
 
 echo "🔥 Deploying MCP-over-HTTP Proxy..."
 
 cd /opt/mcp-as-a-service
 
-# Stop old service
-pm2 delete mcp-registry || echo "No processes to delete"
+# Stop old service(s) - handle both old and new process names
+pm2 delete mcp-registry || echo "No mcp-registry process found"
+pm2 delete mcp-over-http || echo "No mcp-over-http process found"
 
 # Extract all new files
 cd /tmp
@@ -33,8 +38,9 @@ tar -xzf mcp-over-http.tar.gz
 cd /opt/mcp-as-a-service
 
 # Update all source files
-rm -rf src
+rm -rf src test
 cp -r /tmp/src ./
+cp -r /tmp/test ./
 cp /tmp/package.json ./
 cp /tmp/tsconfig.json ./
 
@@ -79,7 +85,7 @@ module.exports = {
     max_memory_restart: '1G',
     env: {
       NODE_ENV: 'production',
-      PORT: 3000,
+      PORT: 8787,
       PATH: process.env.PATH + ':/root/.bun/bin'
     },
     error_file: '/var/log/mcp-registry/error.log',
@@ -112,7 +118,7 @@ sleep 8
 
 # Test local service
 echo "🔍 Testing local MCP-over-HTTP service..."
-curl -f http://localhost:3000/health && echo "✅ SUCCESS!" || echo "❌ Issues"
+curl -f http://localhost:8787/health && echo "✅ SUCCESS!" || echo "❌ Issues"
 
 # Show status
 echo "📊 Production Status:"
@@ -125,7 +131,7 @@ pm2 logs mcp-over-http --lines 5
 ENDSSH
 
 # Clean up
-rm -f mcp-over-http.tar.gz
+rm -f scripts/mcp-over-http.tar.gz
 
 echo ""
 echo "⏳ MCP-over-HTTP service stabilization..."

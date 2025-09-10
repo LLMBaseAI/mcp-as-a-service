@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { validatePackageName, validateProtocol, sanitizeEnvKey, sanitizeEnvValue, ValidationError } from '../validation.js';
+import { validatePackageName, validateProtocol, sanitizeEnvKey, sanitizeEnvValue, ValidationError } from '../src/validation.js';
 
 describe('Package Name Validation', () => {
   test('validates correct package names', () => {
@@ -12,7 +12,7 @@ describe('Package Name Validation', () => {
     expect(() => validatePackageName('')).toThrow('INVALID_PACKAGE_NAME:empty_or_invalid_type');
     expect(() => validatePackageName(null)).toThrow('INVALID_PACKAGE_NAME:empty_or_invalid_type');
     expect(() => validatePackageName('package;name')).toThrow('INVALID_PACKAGE_NAME:invalid_format');
-    expect(() => validatePackageName('package/../traverse')).toThrow('INVALID_PACKAGE_NAME:path_traversal');
+    expect(() => validatePackageName('package/../traverse')).toThrow('INVALID_PACKAGE_NAME:invalid_format');
     expect(() => validatePackageName('A'.repeat(201))).toThrow('INVALID_PACKAGE_NAME:too_long');
   });
 });

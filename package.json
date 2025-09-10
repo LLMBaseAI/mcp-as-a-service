@@ -4,6 +4,47 @@
   "private": true,
   "description": "Run any MCP server (Node/Python) remotely via a simple REST API (Bun + Hono).",
   "type": "module",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "llm",
+    "anthropic",
+    "claude",
+    "server",
+    "proxy",
+    "jsonrpc"
+  ],
+  "mcp": {
+    "protocolVersion": "2024-11-05",
+    "server": {
+      "name": "mcp-as-a-service",
+      "version": "0.1.0",
+      "description": "Proxy service for running MCP servers remotely",
+      "capabilities": {
+        "tools": {
+          "listChanged": true
+        },
+        "resources": {
+          "subscribe": true,
+          "listChanged": true
+        },
+        "prompts": {
+          "listChanged": true
+        },
+        "logging": {}
+      }
+    },
+    "transport": {
+      "http": {
+        "endpoint": "/mcp",
+        "methods": ["POST"]
+      },
+      "sse": {
+        "endpoint": "/package/{packageName}/sse"
+      }
+    }
+  },
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
